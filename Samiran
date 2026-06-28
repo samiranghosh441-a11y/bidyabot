@@ -1,0 +1,206 @@
+import { useState, useRef, useEffect } from "react";
+
+const SUBJECTS = [
+  { label: "সব বিষয়", icon: "✨" },
+  { label: "বিজ্ঞান", icon: "🔬" },
+  { label: "গণিত", icon: "➗" },
+  { label: "বাংলা", icon: "📝" },
+  { label: "ইংরেজি", icon: "🌐" },
+  { label: "ইতিহাস", icon: "📖" },
+  { label: "ভূগোল", icon: "🌍" },
+  { label: "পদার্থ", icon: "⚛️" },
+  { label: "রসায়ন", icon: "🧪" },
+];
+
+const QUICK = [
+  { icon: "🔬", text: "আলোর প্রতিফলন ও প্রতিসরণের পার্থক্য কী?" },
+  { icon: "➗", text: "ত্রিভুজের ক্ষেত্রফল বের করার নিয়ম কী?" },
+  { icon: "📖", text: "পলাশীর যুদ্ধ কবে হয়েছিল এবং কেন গুরুত্বপূর্ণ?" },
+  { icon: "🌐", text: "Madhyamik-এ ইংরেজি রচনা কীভাবে লিখব?" },
+];
+
+const SUBJECT_COLORS = {
+  "সব বিষয়": ["#f97316", "#fb923c"],
+  "বিজ্ঞান":  ["#22c55e", "#4ade80"],
+  "গণিত":    ["#3b82f6", "#60a5fa"],
+  "বাংলা":   ["#ec4899", "#f472b6"],
+  "ইংরেজি":  ["#8b5cf6", "#a78bfa"],
+  "ইতিহাস":  ["#eab308", "#facc15"],
+  "ভূগোল":   ["#14b8a6", "#2dd4bf"],
+  "পদার্থ":  ["#06b6d4", "#22d3ee"],
+  "রসায়ন":  ["#f43f5e", "#fb7185"],
+};
+
+export default function StudyApp() {
+  const [subject, setSubject] = useState("সব বিষয়");
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const chatRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  const activeColor = SUBJECT_COLORS[subject] || ["#f97316", "#fb923c"];
+
+  async function send(text) {
+    const q = text || input.trim();
+    if (!q || loading) return;
+    setInput("");
+    setMessages(m => [...m, { role: "user", text: q }]);
+    setLoading(true);
+    const subjectCtx = subject !== "সব বিষয়" ? `বিষয়: ${subject}। ` : "";
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          system: `তুমি একজন West Bengal Board-এর ছাত্রছাত্রীদের AI শিক্ষক। Class 1 থেকে 12 পর্যন্ত সব বিষয় পড়াও। সহজ, সরল বাংলায় পড়াশোনার প্রশ্নের উত্তর দাও। সংক্ষিপ্ত কিন্তু স্পষ্ট রাখো। প্রয়োজনে উদাহরণ দাও। ${subjectCtx}`,
+          messages: [{ role: "user", content: q }],
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.map(b => b.text || "").join("") || "উত্তর পাওয়া যায়নি।";
+      setMessages(m => [...m, { role: "ai", text: reply, subject: subject !== "সব বিষয়" ? subject : null, color: activeColor }]);
+    } catch {
+      setMessages(m => [...m, { role: "ai", text: "সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করো।", error: true }]);
+    }
+    setLoading(false);
+    inputRef.current?.focus();
+  }
+
+  return (
+    <div style={{ fontFamily: "'Hind Siliguri', sans-serif", background: "#f8f5ff", minHeight: "100vh", display: "flex", flexDirection: "column", maxWidth: 480, margin: "0 auto", position: "relative", overflow: "hidden", height: "100vh" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .chip-btn:hover { transform: scale(1.05); }
+        .quick-btn:hover { transform: translateX(4px); box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
+        .send-btn:hover:not(:disabled) { transform: scale(1.08); }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 4px; }
+        textarea:focus { outline: none; }
+      `}</style>
+
+      {/* Header with gradient */}
+      <div style={{ background: `linear-gradient(135deg, ${activeColor[0]}, ${activeColor[1]})`, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0, transition: "background 0.4s", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
+        <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.25)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)", flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+            {/* Book body */}
+            <rect x="3" y="4" width="16" height="20" rx="2" fill="white" opacity="0.95"/>
+            <rect x="5" y="4" width="2" height="20" fill="rgba(0,0,0,0.12)"/>
+            {/* Book lines */}
+            <line x1="8" y1="9" x2="17" y2="9" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="8" y1="12" x2="17" y2="12" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+            <line x1="8" y1="15" x2="13" y2="15" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2" strokeLinecap="round"/>
+            {/* AI chip */}
+            <circle cx="21" cy="19" r="6" fill="white"/>
+            <text x="21" y="23" textAnchor="middle" fontSize="7" fontWeight="800" fill="#6c63ff" fontFamily="Inter,sans-serif">AI</text>
+          </svg>
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: "#fff" }}>BidyaBot</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)" }}>West Bengal Board · Class 1-12</div>
+        </div>
+        <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "4px 12px", fontSize: 12, color: "#fff", fontWeight: 600 }}>
+          {subject}
+        </div>
+      </div>
+
+      {/* Subject chips */}
+      <div style={{ display: "flex", gap: 8, padding: "10px 14px", overflowX: "auto", background: "#fff", borderBottom: "1px solid #f0e8ff", flexShrink: 0, scrollbarWidth: "none" }}>
+        {SUBJECTS.map(s => {
+          const col = SUBJECT_COLORS[s.label];
+          const active = subject === s.label;
+          return (
+            <button key={s.label} className="chip-btn"
+              onClick={() => setSubject(s.label)}
+              style={{ padding: "6px 14px", borderRadius: 20, border: "none", background: active ? `linear-gradient(135deg, ${col[0]}, ${col[1]})` : "#f3f0ff", color: active ? "#fff" : "#7c6fa0", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, fontFamily: "inherit", fontWeight: active ? 700 : 500, transition: "all 0.2s", boxShadow: active ? `0 2px 8px ${col[0]}55` : "none" }}>
+              {s.icon} {s.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Chat */}
+      <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column", gap: 14 }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: "center", padding: "20px 8px" }}>
+            <div style={{ fontSize: 56, marginBottom: 10 }}>🎓</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#3d2c8d", marginBottom: 6 }}>হ্যালো! আজকে কী পড়বে?</div>
+            <div style={{ color: "#9b8ec4", fontSize: 14, marginBottom: 22, lineHeight: 1.6 }}>
+              West Bengal Board-এর যেকোনো বিষয়ের প্রশ্ন করো!
+            </div>
+            {QUICK.map(q => {
+              const col = SUBJECT_COLORS["সব বিষয়"];
+              return (
+                <button key={q.text} className="quick-btn" onClick={() => send(q.text)}
+                  style={{ background: "#fff", border: "1.5px solid #e8deff", borderRadius: 14, padding: "12px 16px", fontSize: 14, cursor: "pointer", color: "#3d2c8d", display: "flex", alignItems: "center", gap: 10, marginBottom: 10, textAlign: "left", width: "100%", fontFamily: "inherit", fontWeight: 500, transition: "all 0.2s", boxShadow: "0 2px 8px rgba(108,63,255,0.06)" }}>
+                  <span style={{ fontSize: 20, width: 28, textAlign: "center" }}>{q.icon}</span>
+                  <span>{q.text}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: msg.role === "user" ? "row-reverse" : "row", gap: 8, alignItems: "flex-end", animation: "fadeUp 0.25s ease" }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: msg.role === "user" ? `linear-gradient(135deg, ${activeColor[0]}, ${activeColor[1]})` : "#fff", border: msg.role === "ai" ? "2px solid #e8deff" : "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+              {msg.role === "user" ? "👤" : "🤖"}
+            </div>
+            <div style={{ padding: "12px 15px", borderRadius: 16, fontSize: 15, lineHeight: 1.7, maxWidth: "calc(100% - 46px)", background: msg.error ? "#fff0f0" : msg.role === "user" ? `linear-gradient(135deg, ${activeColor[0]}, ${activeColor[1]})` : "#fff", border: msg.role === "ai" ? `1.5px solid ${msg.error ? "#ffd0d0" : "#e8deff"}` : "none", borderBottomRightRadius: msg.role === "user" ? 4 : 16, borderBottomLeftRadius: msg.role === "ai" ? 4 : 16, color: msg.error ? "#c0392b" : msg.role === "user" ? "#fff" : "#2d1b6e", whiteSpace: "pre-wrap", wordBreak: "break-word", boxShadow: msg.role === "user" ? `0 4px 12px ${activeColor[0]}44` : "0 2px 10px rgba(0,0,0,0.06)" }}>
+              {msg.subject && (
+                <div style={{ display: "inline-block", padding: "2px 10px", borderRadius: 10, fontSize: 11, background: `linear-gradient(135deg, ${(msg.color||activeColor)[0]}22, ${(msg.color||activeColor)[1]}22)`, color: (msg.color||activeColor)[0], marginBottom: 6, fontWeight: 700 }}>
+                  {msg.subject}
+                </div>
+              )}
+              {msg.subject && <br />}
+              {msg.text}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", border: "2px solid #e8deff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>🤖</div>
+            <div style={{ padding: "14px 18px", borderRadius: 16, borderBottomLeftRadius: 4, background: "#fff", border: "1.5px solid #e8deff", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: activeColor[0], animation: `bounce 1.2s ${i*0.2}s infinite` }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input bar */}
+      <div style={{ padding: "10px 14px", background: "#fff", borderTop: "1.5px solid #f0e8ff", display: "flex", gap: 8, alignItems: "flex-end", flexShrink: 0, boxShadow: "0 -2px 12px rgba(108,63,255,0.06)" }}>
+        <textarea
+          ref={inputRef}
+          value={input}
+          rows={1}
+          placeholder="প্রশ্ন করো..."
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+          style={{ flex: 1, background: "#f8f5ff", border: `1.5px solid ${input ? activeColor[0] : "#e8deff"}`, borderRadius: 14, padding: "12px 14px", color: "#2d1b6e", fontFamily: "inherit", fontSize: 15, resize: "none", maxHeight: 100, minHeight: 46, lineHeight: 1.5, transition: "border-color 0.2s" }}
+        />
+        <button className="send-btn"
+          disabled={!input.trim() || loading}
+          onClick={() => send()}
+          style={{ width: 46, height: 46, borderRadius: 14, background: !input.trim() || loading ? "#e8deff" : `linear-gradient(135deg, ${activeColor[0]}, ${activeColor[1]})`, border: "none", cursor: !input.trim() || loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.2s", boxShadow: !input.trim() || loading ? "none" : `0 4px 12px ${activeColor[0]}55` }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill={!input.trim() || loading ? "#b8a8e8" : "white"}>
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
